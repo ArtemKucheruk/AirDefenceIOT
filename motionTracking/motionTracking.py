@@ -67,6 +67,8 @@ def calculate_offsets(frame, track):
 
     return (track_center_x, track_center_y), (dx, dy)
 
+import socket
+
 def run():
     # Tracker setup
     model_spec = {'order_pos': 1, 'dim_pos': 2,
@@ -122,6 +124,7 @@ def run():
         cap.release()
         cv2.destroyAllWindows()
         client_socket.close()
+
 
 if __name__ == "__main__":
     run()
