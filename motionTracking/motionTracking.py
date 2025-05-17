@@ -111,7 +111,7 @@ def run():
                 print(f"Target Center: (x={x}, y={y}) | Offset from center: (dx={dx}, dy={dy})")
 
                 # Send coordinates to the server
-                message = f"x={dx},y={dy}"
+                message = f"{dx},{dy}"
                 client_socket.sendall(message.encode('utf-8'))
 
             # Draw frame center (for visualization)
