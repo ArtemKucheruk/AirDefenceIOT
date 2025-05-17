@@ -46,6 +46,7 @@ class FaceDetector(BaseObjectDetector):
         return out_detections
 
 def calculate_offsets(frame, track):
+    frame = cv2.flip(frame, 2)# to flip camera
     frame_center = (frame.shape[1] // 2, frame.shape[0] // 2)
     track_center = (
         (track.box[0] + track.box[2]) // 2,
