@@ -1,5 +1,5 @@
 import socket
-from stepper_motor.funcs import setup_motors, run_motor_1, run_motor_2  # Import motor control functions
+from stepper_motor.funcs import setup_motors, run_motor_1, run_motor_2, disableBothMotors  # Import motor control functions
 
 # Server settings
 HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
@@ -45,4 +45,10 @@ def start_server():
 
 # Run the server
 if __name__ == "__main__":
-    start_server()
+    try:
+        start_server()
+    except:
+        print("something went wrong")
+    finally:
+        disableBothMotors()
+    
