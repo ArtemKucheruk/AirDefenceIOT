@@ -1,54 +1,60 @@
 import socket
-from stepper_motor.funcs import setup_motors, run_motor_1, run_motor_2, disableBothMotors  # Import motor control functions
+from stepper_motor.funcs import setup_motors, run_motor_1, run_motor_2, disableBothMotors
 
-# Server settings
-HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
+HOST = "127.0.0.1"
+PORT = 65432
+
 
 def start_server():
-    # Set up motors before starting server
     setup_motors()
 
-    # Set up server socket to receive data from the client
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
         print(f"Server listening on {HOST}:{PORT}")
-        
+
         conn, addr = s.accept()
         with conn:
             print(f"Connected by {addr}")
+            buffer = ""
+
             while True:
-                data = conn.recv(1024)
+                data = conn.recv(1024).decode('utf-8')
                 if not data:
                     break
 
-                # Decode the received data and parse the x and y offsets
-                data = data.decode('utf-8')
-                print(f"Received data: {data}")
+                buffer += data
 
-                # Extract the x and y offset from the message (e.g., "x=5,y=-3")
-                try:
-                    x_offset, y_offset = map(int, data.split(','))
-                    print(f"Parsed offsets - x_offset: {x_offset}, y_offset: {y_offset}")
+                while "\n" in buffer:
+                    message, buffer = buffer.split("\n", 1)
+                    message = message.strip()
 
-                    # Control the motors based on the received offsets
-                    run_motor_1(x_offset)  # Control motor 1 with the x offset
-                    run_motor_2(y_offset)  # Control motor 2 with the y offset
+                    if not message:
+                        continue
 
-                except ValueError:
-                    print("Invalid data format received.")
+                    print(f"Received: {message}")
 
-                # Optionally, send a confirmation message back to the client
-                response = f"Moved motors with x_offset={x_offset}, y_offset={y_offset}"
-                conn.sendall(response.encode('utf-8'))
+                    try:
+                        x_offset, y_offset = map(int, message.split(','))
+                        print(f"Moving motors: x={x_offset}, y={y_offset}")
 
-# Run the server
+                        print(f"Moving motors: x={x_offset}, y={y_offset}")
+                        run_motor_1(x_offset)
+                        run_motor_2(y_offset)
+                        print("Motors moved.")
+
+                        conn.sendall(b"ACK\n")
+
+                    except ValueError as e:
+                        print(f"Error parsing: {e}")
+                        conn.sendall(b"ERROR\n")
+
+
 if __name__ == "__main__":
     try:
         start_server()
-    except:
-        print("something went wrong")
+    except Exception as e:
+        print(f"Server error: {e}")
     finally:
         disableBothMotors()
-    
+        print("Motors disabled")

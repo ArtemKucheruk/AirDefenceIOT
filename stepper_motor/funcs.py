@@ -1,6 +1,6 @@
 import time
 import wiringpi
-from config import *
+from stepper_motor.config import *
 
 
 
