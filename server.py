@@ -95,6 +95,7 @@ def update_frame(frame):
 if __name__ == "__main__":
     # Start Flask in a separate thread
     flask_thread = threading.Thread(target=start_flask)
+    print('flask started')
     flask_thread.daemon = True
     flask_thread.start()
 
