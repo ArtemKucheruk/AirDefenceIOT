@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Air Defence System</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00ff9d;
+            text-align: center;
+        }
+        #videoFeed {
+            width: 100%;
+            border: 2px solid #00ff9d;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            color: #00ff9d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Air Defence System Control Panel</h1>
+        <div class="status">LIVE CAMERA FEED</div>
+        <img id="videoFeed" src="{{ url_for('video_feed') }}">
+    </div>
+</body>
+</html>

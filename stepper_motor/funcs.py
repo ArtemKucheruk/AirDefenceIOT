@@ -1,6 +1,6 @@
 import time
 import wiringpi
-from config import *
+from stepper_motor.config import *
 
 
 
@@ -67,3 +67,9 @@ def run_motor_2(y_offset):
         time.sleep(delay)
         wiringpi.digitalWrite(PUL2, 0)
         time.sleep(delay)
+
+
+def disableBothMotors():
+    wiringpi.digitalWrite(ENA1, 1)
+    wiringpi.digitalWrite(ENA2, 1)
+    print("Motors stopped and disabled.")
