@@ -1,75 +1,84 @@
-import time
 import wiringpi
-from stepper_motor.config import *
+import time
+import threading
+from config import *
 
 
-
-def setup_motors():
-    """
-    Setup function to initialize the motor pins, configure wiringPi, and enable the motors.
-    """
-    # Initialize wiringPi
+def set_up_motors():
     wiringpi.wiringPiSetup()
-
-    # Set the pin modes for each motor
     for pin in [PUL1, DIR1, ENA1, PUL2, DIR2, ENA2]:
-        wiringpi.pinMode(pin, 1)  # Set pin mode to OUTPUT
-
-    # Enable both motors (LOW = enabled)
-    wiringpi.digitalWrite(ENA1, 0)
+        wiringpi.pinMode(pin, 1)
+    wiringpi.digitalWrite(ENA1, 0)  # Enable motor 1 (LOW = enabled)
     wiringpi.digitalWrite(ENA2, 0)
-    print("Motors initialized and enabled.")
 
-def run_motor_1(x_offset):
-    """
-    Function to control motor 1 based on the x offset.
-    """
-    delay = 0.002  # Initial delay
-    duration = 3  # Duration for each motor step
-
-    # Determine motor direction based on x offset
-    if x_offset > 0:
-        dir1 = 1  # Move motor 1 CW (clockwise)
-    else:
-        dir1 = 0  # Move motor 1 CCW (counterclockwise)
-
-    # Control the first motor
-    wiringpi.digitalWrite(DIR1, dir1)
-    steps = int(duration / (delay * 2))
-
-    for i in range(steps):
+def run_motor1(steps):
+    wiringpi.digitalWrite(DIR1, 1 if steps >= 0 else 0)
+    steps = abs(steps)
+    for _ in range(steps):
         wiringpi.digitalWrite(PUL1, 1)
-        time.sleep(delay)
+        time.sleep(MOTOR_DELAY)
         wiringpi.digitalWrite(PUL1, 0)
-        time.sleep(delay)
+        time.sleep(MOTOR_DELAY)
 
-
-
-def run_motor_2(y_offset):
-    """
-    Function to control motor 2 based on the y offset.
-    """
-    delay = 0.002  # Initial delay
-    duration = 3  # Duration for each motor step
-
-    # Determine motor direction based on y offset
-    if y_offset > 0:
-        dir2 = 1  # Move motor 2 CW (clockwise)
-    else:
-        dir2 = 0  # Move motor 2 CCW (counterclockwise)
-
-    # Control the second motor
-    wiringpi.digitalWrite(DIR2, dir2)
-    steps = int(duration / (delay * 2))
-
-    for i in range(steps):
+def run_motor2(steps):
+    wiringpi.digitalWrite(DIR2, 1 if steps >= 0 else 0)
+    steps = abs(steps)
+    for _ in range(steps):
         wiringpi.digitalWrite(PUL2, 1)
-        time.sleep(delay)
+        time.sleep(MOTOR_DELAY)
         wiringpi.digitalWrite(PUL2, 0)
-        time.sleep(delay)
+        time.sleep(MOTOR_DELAY)
+
+def pixel_offset_to_steps(offset, frame_dim, fov_deg=60, step_angle_deg=1.8, deadzone=5):
+    if abs(offset) < deadzone:
+        return 0
+    angle_per_pixel = fov_deg / frame_dim
+    angle = offset * angle_per_pixel
+    steps = int(round(angle / step_angle_deg))
+    return steps
 
 
-def disableBothMotors():
-    wiringpi.digitalWrite(ENA1, 1)
-    wiringpi.digitalWrite(ENA2, 1)
-    print("Motors stopped and disabled.")
+
+class MotorController:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.current_pos_x = 0
+        self.current_pos_y = 0
+        self.target_pos_x = 0
+        self.target_pos_y = 0
+        self.running = True
+        self.deadzone_steps = 1
+
+    def update_target(self, steps_x, steps_y):
+        with self.lock:
+            self.target_pos_x = steps_x
+            self.target_pos_y = steps_y
+        print(f"Updated target position: X={steps_x}, Y={steps_y}")
+
+    def motor_thread(self):
+        while self.running:
+            with self.lock:
+                dx = self.target_pos_x - self.current_pos_x
+                dy = self.target_pos_y - self.current_pos_y
+
+            # Move Motor 2 (X axis) one step if needed
+            if abs(dx) > self.deadzone_steps:
+                step_dir_x = 1 if dx > 0 else -1
+                run_motor2(step_dir_x)
+                self.current_pos_x += step_dir_x
+
+            # Move Motor 1 (Y axis) one step if needed
+            if abs(dy) > self.deadzone_steps:
+                step_dir_y = 1 if dy > 0 else -1
+                run_motor1(step_dir_y)
+                self.current_pos_y += step_dir_y
+
+            time.sleep(MOTOR_DELAY)  # Pace stepping to motor speed
+
+    def start(self):
+        self.thread = threading.Thread(target=self.motor_thread, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.running = False
+        self.thread.join()

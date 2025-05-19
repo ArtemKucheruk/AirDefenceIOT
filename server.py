@@ -1,109 +1,62 @@
 import socket
-from flask import Flask, render_template, Response
-import threading
-import cv2
-import numpy as np
-from stepper_motor.funcs import setup_motors, run_motor_1, run_motor_2, disableBothMotors
+import wiringpi
+import time
+from stepper_motor.funcs import *
 
-# Initialize Flask app
-app = Flask(__name__)
-
-# Server configuration
-HOST = "127.0.0.1"
+HOST = "127.0.0.1"  # Localhost
 PORT = 65432
 
-# Global variables for frame sharing
-current_frame = None
-frame_lock = threading.Lock()
+def parse_coordinates(message):
+    # Example message: "x=156.0,y=28.0"
+    try:
+        parts = message.strip().split(',')
+        x = float(parts[0].split('=')[1])
+        y = float(parts[1].split('=')[1])
+        return x, y
+    except Exception as e:
+        print(f"Failed to parse coordinates: {message} | Error: {e}")
+        return None, None
 
-def generate_frames():
-    """Video streaming generator function."""
-    global current_frame, frame_lock
-    while True:
-        with frame_lock:
-            if current_frame is None:
-                continue
-            ret, buffer = cv2.imencode('.jpg', current_frame)
-            frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+def run_server():
+    HOST = "127.0.0.1"
+    PORT = 65432
 
-@app.route('/')
-def index():
-    """Video streaming home page."""
-    return render_template('index.html')
+    # Assuming client resizes frame to these dimensions
+    frame_width = 320
+    frame_height = 240
 
-@app.route('/video_feed')
-def video_feed():
-    """Video streaming route."""
-    return Response(generate_frames(),
-                   mimetype='multipart/x-mixed-replace; boundary=frame')
+    motor_controller = MotorController()
+    motor_controller.start()
 
-def start_flask():
-    """Start Flask web server in a separate thread."""
-    app.run(host='0.0.0.0', port=5000, threaded=True)
-
-def socket_server():
-    """Main socket server for motor control."""
-    setup_motors()
-    
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
-        print(f"Socket server listening on {HOST}:{PORT}")
-
+        print(f"Server listening on {HOST}:{PORT}")
         conn, addr = s.accept()
         with conn:
             print(f"Connected by {addr}")
-            buffer = ""
-
+            set_up_motors()
             while True:
-                data = conn.recv(1024).decode('utf-8')
+                data = conn.recv(1024)
                 if not data:
                     break
+                message = data.decode('utf-8').strip()
+                x, y = parse_coordinates(message)
+                if x is None or y is None:
+                    continue
 
-                buffer += data
-                
-                while "\n" in buffer:
-                    message, buffer = buffer.split("\n", 1)
-                    message = message.strip()
+                # Convert pixel offsets to motor steps
+                steps_x = pixel_offset_to_steps(x, frame_width)
+                steps_y = pixel_offset_to_steps(y, frame_height)
 
-                    if not message:
-                        continue
+                # Update motor targets
+                motor_controller.update_target(steps_x, steps_y)
 
-                    print(f"Received: {message}")
-
-                    try:
-                        x_offset, y_offset = map(int, message.split(','))
-                        print(f"Moving motors: x={x_offset}, y={y_offset}")
-                        
-                        run_motor_1(x_offset)
-                        run_motor_2(y_offset)
-                        
-                        conn.sendall(b"ACK\n")
-
-                    except ValueError as e:
-                        print(f"Error parsing: {e}")
-                        conn.sendall(b"ERROR\n")
-
-def update_frame(frame):
-    """Update the current frame for Flask streaming."""
-    global current_frame, frame_lock
-    with frame_lock:
-        current_frame = frame.copy()
+    motor_controller.stop()
+    wiringpi.digitalWrite(ENA1, 1)  # Disable motors on exit
+    wiringpi.digitalWrite(ENA2, 1)
+    print("Motors disabled, server shutting down.")
 
 if __name__ == "__main__":
-    # Start Flask in a separate thread
-    flask_thread = threading.Thread(target=start_flask)
-    print('flask started')
-    flask_thread.daemon = True
-    flask_thread.start()
-
-    # Start socket server in main thread
-    try:
-        socket_server()
-    except Exception as e:
-        print(f"Server error: {e}")
-    finally:
-        disableBothMotors()
-        print("Motors disabled")
+    run_server()
+    
