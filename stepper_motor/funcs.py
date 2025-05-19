@@ -61,19 +61,22 @@ class MotorController:
                 dx = self.target_pos_x - self.current_pos_x
                 dy = self.target_pos_y - self.current_pos_y
 
-            # Move Motor 2 (X axis) one step if needed
-            if abs(dx) > self.deadzone_steps:
+            print(f"Motor thread: Current X={self.current_pos_x}, Target X={self.target_pos_x}, dx={dx}")
+            print(f"Motor thread: Current Y={self.current_pos_y}, Target Y={self.target_pos_y}, dy={dy}")
+
+            if abs(dx) > 0:
                 step_dir_x = 1 if dx > 0 else -1
+                print(f"Stepping motor 2 one step {'forward' if step_dir_x == 1 else 'backward'}")
                 run_motor2(step_dir_x)
                 self.current_pos_x += step_dir_x
-
-            # Move Motor 1 (Y axis) one step if needed
-            if abs(dy) > self.deadzone_steps:
+            if abs(dy) > 0:
                 step_dir_y = 1 if dy > 0 else -1
+                print(f"Stepping motor 1 one step {'forward' if step_dir_y == 1 else 'backward'}")
                 run_motor1(step_dir_y)
                 self.current_pos_y += step_dir_y
 
-            time.sleep(MOTOR_DELAY)  # Pace stepping to motor speed
+            time.sleep(MOTOR_DELAY)
+
 
     def start(self):
         self.thread = threading.Thread(target=self.motor_thread, daemon=True)
