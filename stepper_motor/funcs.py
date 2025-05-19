@@ -73,13 +73,13 @@ class MotorController:
 
             if abs(dx) > 0:
                 step_dir_x = 1 if dx > 0 else -1
-                print(f"Stepping motor 2 one step {'forward' if step_dir_x == 1 else 'backward'}")
-                run_motor2(step_dir_x)
+                print(f"Stepping motor 1 one step {'forward' if step_dir_x == 1 else 'backward'}")
+                run_motor1(step_dir_x)  # X axis controls motor 1
                 self.current_pos_x += step_dir_x
             if abs(dy) > 0:
                 step_dir_y = 1 if dy > 0 else -1
-                print(f"Stepping motor 1 one step {'forward' if step_dir_y == 1 else 'backward'}")
-                run_motor1(step_dir_y)
+                print(f"Stepping motor 2 one step {'forward' if step_dir_y == 1 else 'backward'}")
+                run_motor2(step_dir_y)  # Y axis controls motor 2
                 self.current_pos_y += step_dir_y
 
             time.sleep(MOTOR_DELAY)

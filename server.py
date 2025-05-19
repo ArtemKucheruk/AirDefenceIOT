@@ -3,7 +3,7 @@ import threading
 import time
 import wiringpi
 from stepper_motor.funcs import MotorController, pixel_offset_to_steps, set_up_motors, ENA1, ENA2
-
+from stepper_motor.funcs import *
 HOST = "127.0.0.1"
 PORT = 65432
 
@@ -92,6 +92,20 @@ def run_server():
 
                 # Update latest target thread-safely, without blocking
                 update_latest_target(steps_x, steps_y)
+
+                dx = steps_x - motor_controller.current_pos_x
+                dy = steps_y - motor_controller.current_pos_y
+
+                if abs(dx) > 0:
+                    step_dir_x = 1 if dx > 0 else -1
+                    print(f"Stepping motor 2 one step {'forward' if step_dir_x == 1 else 'backward'}")
+                    run_motor2(step_dir_x)
+                    motor_controller.current_pos_x += step_dir_x
+                if abs(dy) > 0:
+                    step_dir_y = 1 if dy > 0 else -1
+                    print(f"Stepping motor 1 one step {'forward' if step_dir_y == 1 else 'backward'}")
+                    run_motor1(step_dir_y)
+                    motor_controller.current_pos_y += step_dir_y
 
     motor_controller.stop()
     wiringpi.digitalWrite(ENA1, 1)
