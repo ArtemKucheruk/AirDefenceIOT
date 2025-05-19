@@ -25,6 +25,7 @@ KI = 0.02  # Integral gain
 KD = 0.01  # Derivative gain
 
 # Global variables
+global running, last_error_x, last_error_y, integral_x, integral_y
 running = True
 last_error_x = 0
 last_error_y = 0
@@ -102,6 +103,8 @@ class MotorController:
             tilt_thread.join()
 
 def person_detector():
+    global running, integral_x, integral_y, last_error_x, last_error_y
+    
     # Load HOG detector for human detection
     hog = cv2.HOGDescriptor()
     hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
@@ -128,7 +131,7 @@ def person_detector():
     motor_controller = MotorController()
     
     # Initialize PID variables
-    global integral_x, integral_y, last_error_x, last_error_y
+    # Using global variables declared earlier
     
     try:
         while running:
@@ -196,7 +199,6 @@ def person_detector():
         # Clean up
         cap.release()
         cv2.destroyAllWindows()
-        global running
         running = False
 
 if __name__ == "__main__":
