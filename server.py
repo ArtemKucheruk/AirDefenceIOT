@@ -1,13 +1,13 @@
 import socket
-import wiringpi
+import threading
 import time
+import wiringpi
 from stepper_motor.funcs import MotorController, pixel_offset_to_steps, set_up_motors, ENA1, ENA2
 
-HOST = "127.0.0.1"  # Localhost
+HOST = "127.0.0.1"
 PORT = 65432
 
 def parse_coordinates(message):
-    # Example message: "x=156.0,y=28.0"
     try:
         parts = message.strip().split(',')
         x = float(parts[0].split('=')[1])
@@ -35,20 +35,38 @@ class OffsetSmoother:
         return self.smoothed_x, self.smoothed_y
 
 def run_server():
-    frame_width = 320   # Must match client resized frame width
-    frame_height = 240  # Must match client resized frame height
+    frame_width = 320
+    frame_height = 240
 
+    set_up_motors()
     motor_controller = MotorController()
-    motor_controller.deadzone_steps = 3  # increase deadzone to reduce jitter
+    motor_controller.deadzone_steps = 3
     motor_controller.start()
-
-    set_up_motors()  # Initialize GPIO pins and enable motors
 
     smoother = OffsetSmoother(alpha=0.3)
 
-    min_update_interval = 0.15  # seconds, update motor target every 150ms
-    last_update_time = 0
+    # Shared latest target coords for thread-safe updating
+    latest_target_lock = threading.Lock()
+    latest_target_steps = (0, 0)
 
+    def update_latest_target(steps_x, steps_y):
+        nonlocal latest_target_steps
+        with latest_target_lock:
+            latest_target_steps = (steps_x, steps_y)
+
+    def motor_target_updater():
+        # Thread to regularly update motor target from latest buffered steps
+        while motor_controller.running:
+            with latest_target_lock:
+                tx, ty = latest_target_steps
+            motor_controller.update_target(tx, ty)
+            time.sleep(0.05)  # update motor target at 20Hz
+
+    # Start motor target updater thread
+    updater_thread = threading.Thread(target=motor_target_updater, daemon=True)
+    updater_thread.start()
+
+    # Start socket server
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
@@ -60,30 +78,30 @@ def run_server():
             while True:
                 data = conn.recv(1024)
                 if not data:
-                    print("Client disconnected.")
+                    print("Client disconnected")
                     break
-
                 message = data.decode('utf-8').strip()
                 x, y = parse_coordinates(message)
                 if x is None or y is None:
                     continue
 
-                # Smooth the incoming offset data
                 x_smooth, y_smooth = smoother.smooth(x, y)
 
-                # Convert smoothed offsets to motor steps
                 steps_x = pixel_offset_to_steps(x_smooth, frame_width)
                 steps_y = pixel_offset_to_steps(y_smooth, frame_height)
 
-                now = time.time()
-                if now - last_update_time >= min_update_interval:
-                    motor_controller.update_target(steps_x, steps_y)
-                    last_update_time = now
+                # Update latest target thread-safely, without blocking
+                update_latest_target(steps_x, steps_y)
 
     motor_controller.stop()
-    wiringpi.digitalWrite(ENA1, 1)  # Disable motors on exit
+    wiringpi.digitalWrite(ENA1, 1)
     wiringpi.digitalWrite(ENA2, 1)
     print("Motors disabled, server shutting down.")
 
 if __name__ == "__main__":
-    run_server()
+    try:
+        run_server()
+    finally:
+        wiringpi.digitalWrite(ENA1, 1)
+        wiringpi.digitalWrite(ENA2, 1)
+        print("Motors disabled, server shutting down.")
