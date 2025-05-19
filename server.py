@@ -1,121 +1,72 @@
-import socket
-import threading
-import time
 import wiringpi
-from stepper_motor.funcs import MotorController, pixel_offset_to_steps, set_up_motors, ENA1, ENA2
-from stepper_motor.funcs import *
-HOST = "127.0.0.1"
-PORT = 65432
+import socket
+import json
+from threading import Thread
 
-def parse_coordinates(message):
+# Motor GPIO Configuration (WiringPi numbering)
+MOTORS = {
+    'X': {'PUL': 2, 'DIR': 3, 'ENA': 11},
+    'Y': {'PUL': 4, 'DIR': 5, 'ENA': 6}
+}
+
+# Motor control parameters
+STEP_DELAY = 0.001  # Adjust for motor speed
+STEPS_PER_PIXEL = 2  # Steps per pixel offset (adjust based on your mechanics)
+
+def setup_gpio():
+    wiringpi.wiringPiSetup()
+    for axis in MOTORS.values():
+        wiringpi.pinMode(axis['PUL'], wiringpi.OUTPUT)
+        wiringpi.pinMode(axis['DIR'], wiringpi.OUTPUT)
+        wiringpi.pinMode(axis['ENA'], wiringpi.OUTPUT)
+        wiringpi.digitalWrite(axis['ENA'], wiringpi.HIGH)  # Enable motors
+
+def move_motor(axis, direction, steps):
+    wiringpi.digitalWrite(MOTORS[axis]['DIR'], direction)
+    for _ in range(steps):
+        wiringpi.digitalWrite(MOTORS[axis]['PUL'], wiringpi.HIGH)
+        wiringpi.delayMicroseconds(int(STEP_DELAY * 1000000))
+        wiringpi.digitalWrite(MOTORS[axis]['PUL'], wiringpi.LOW)
+        wiringpi.delayMicroseconds(int(STEP_DELAY * 1000000))
+
+def handle_client(conn):
+    while True:
+        try:
+            data = conn.recv(1024).decode()
+            if not data:
+                break
+            dx, dy = json.loads(data)
+            
+            # Calculate steps needed
+            x_steps = int(abs(dx) * STEPS_PER_PIXEL)
+            y_steps = int(abs(dy) * STEPS_PER_PIXEL)
+            
+            # Move motors in threads
+            if dx != 0:
+                Thread(target=move_motor, args=('X', dx > 0, x_steps)).start()
+            if dy != 0:
+                Thread(target=move_motor, args=('Y', dy < 0, y_steps)).start()
+                
+        except Exception as e:
+            print(f"Error: {e}")
+            break
+    conn.close()
+
+def main():
+    setup_gpio()
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(('0.0.0.0', 65432))
+    server.listen(1)
+    print("Motor server listening on port 65432...")
+    
     try:
-        parts = message.strip().split(',')
-        x = float(parts[0].split('=')[1])
-        y = float(parts[1].split('=')[1])
-        return x, y
-    except Exception as e:
-        print(f"Failed to parse coordinates: {message} | Error: {e}")
-        return None, None
-
-class OffsetSmoother:
-    def __init__(self, alpha=0.3):
-        self.alpha = alpha
-        self.smoothed_x = 0
-        self.smoothed_y = 0
-        self.initialized = False
-
-    def smooth(self, x, y):
-        if not self.initialized:
-            self.smoothed_x = x
-            self.smoothed_y = y
-            self.initialized = True
-        else:
-            self.smoothed_x = self.alpha * x + (1 - self.alpha) * self.smoothed_x
-            self.smoothed_y = self.alpha * y + (1 - self.alpha) * self.smoothed_y
-        return self.smoothed_x, self.smoothed_y
-
-def run_server():
-    frame_width = 320
-    frame_height = 240
-
-    set_up_motors()
-    motor_controller = MotorController()
-    motor_controller.deadzone_steps = 3
-    motor_controller.start()
-
-    smoother = OffsetSmoother(alpha=0.3)
-
-    # Shared latest target coords for thread-safe updating
-    latest_target_lock = threading.Lock()
-    latest_target_steps = (0, 0)
-
-    def update_latest_target(steps_x, steps_y):
-        nonlocal latest_target_steps
-        with latest_target_lock:
-            latest_target_steps = (steps_x, steps_y)
-
-    def motor_target_updater():
-        # Thread to regularly update motor target from latest buffered steps
-        while motor_controller.running:
-            with latest_target_lock:
-                tx, ty = latest_target_steps
-            motor_controller.update_target(tx, ty)
-            time.sleep(0.05)  # update motor target at 20Hz
-
-    # Start motor target updater thread
-    updater_thread = threading.Thread(target=motor_target_updater, daemon=True)
-    updater_thread.start()
-
-    # Start socket server
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        print(f"Server listening on {HOST}:{PORT}")
-        conn, addr = s.accept()
-        with conn:
-            print(f"Connected by {addr}")
-
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    print("Client disconnected")
-                    break
-                message = data.decode('utf-8').strip()
-                x, y = parse_coordinates(message)
-                if x is None or y is None:
-                    continue
-
-                x_smooth, y_smooth = smoother.smooth(x, y)
-
-                steps_x = pixel_offset_to_steps(x_smooth, frame_width)
-                steps_y = pixel_offset_to_steps(y_smooth, frame_height)
-
-                # Update latest target thread-safely, without blocking
-                update_latest_target(steps_x, steps_y)
-
-                dx = steps_x - motor_controller.current_pos_x
-                dy = steps_y - motor_controller.current_pos_y
-
-                if abs(dx) > 0:
-                    step_dir_x = 1 if dx > 0 else -1
-                    print(f"Stepping motor 2 one step {'forward' if step_dir_x == 1 else 'backward'}")
-                    run_motor2(step_dir_x)
-                    motor_controller.current_pos_x += step_dir_x
-                if abs(dy) > 0:
-                    step_dir_y = 1 if dy > 0 else -1
-                    print(f"Stepping motor 1 one step {'forward' if step_dir_y == 1 else 'backward'}")
-                    run_motor1(step_dir_y)
-                    motor_controller.current_pos_y += step_dir_y
-
-    motor_controller.stop()
-    wiringpi.digitalWrite(ENA1, 1)
-    wiringpi.digitalWrite(ENA2, 1)
-    print("Motors disabled, server shutting down.")
+        while True:
+            conn, _ = server.accept()
+            Thread(target=handle_client, args=(conn,)).start()
+    finally:
+        server.close()
+        wiringpi.digitalWrite(MOTORS['X']['ENA'], wiringpi.LOW)
+        wiringpi.digitalWrite(MOTORS['Y']['ENA'], wiringpi.LOW)
 
 if __name__ == "__main__":
-    try:
-        run_server()
-    finally:
-        wiringpi.digitalWrite(ENA1, 1)
-        wiringpi.digitalWrite(ENA2, 1)
-        print("Motors disabled, server shutting down.")
+    main()
