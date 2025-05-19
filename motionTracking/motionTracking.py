@@ -78,7 +78,7 @@ def run():
     tracker = MultiObjectTracker(dt=dt, model_spec=model_spec)
 
     # Camera setup
-    cap = cv2.VideoCapture(0) # change to "/dev/video1"
+    cap = cv2.VideoCapture("/dev/video0") # change to "/dev/video1"
     face_detector = FaceDetector()
 
     # Socket setup

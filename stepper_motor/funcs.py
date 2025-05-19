@@ -1,7 +1,7 @@
 import wiringpi
 import time
 import threading
-from config import *
+from stepper_motor.config import *
 
 
 def set_up_motors():
@@ -14,20 +14,27 @@ def set_up_motors():
 def run_motor1(steps):
     wiringpi.digitalWrite(DIR1, 1 if steps >= 0 else 0)
     steps = abs(steps)
-    for _ in range(steps):
+    print(f"run_motor1: Moving {steps} steps {'forward' if steps >= 0 else 'backward'}")
+    for i in range(steps):
+        print(f"Motor1 pulse HIGH step {i+1}")
         wiringpi.digitalWrite(PUL1, 1)
         time.sleep(MOTOR_DELAY)
         wiringpi.digitalWrite(PUL1, 0)
+        print(f"Motor1 pulse LOW step {i+1}")
         time.sleep(MOTOR_DELAY)
 
 def run_motor2(steps):
     wiringpi.digitalWrite(DIR2, 1 if steps >= 0 else 0)
     steps = abs(steps)
-    for _ in range(steps):
+    print(f"run_motor2: Moving {steps} steps {'forward' if steps >= 0 else 'backward'}")
+    for i in range(steps):
+        print(f"Motor2 pulse HIGH step {i+1}")
         wiringpi.digitalWrite(PUL2, 1)
         time.sleep(MOTOR_DELAY)
         wiringpi.digitalWrite(PUL2, 0)
+        print(f"Motor2 pulse LOW step {i+1}")
         time.sleep(MOTOR_DELAY)
+
 
 def pixel_offset_to_steps(offset, frame_dim, fov_deg=60, step_angle_deg=1.8, deadzone=5):
     if abs(offset) < deadzone:
