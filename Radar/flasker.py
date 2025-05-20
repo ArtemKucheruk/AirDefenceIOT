@@ -7,10 +7,10 @@ import wiringpi as wp
 HOST = '0.0.0.0'      # Listen on all interfaces
 PORT = 65432          # Port to listen on
 
-TRIG = 0              # GPIO.5 (BCM 24) -> HC-SR04 TRIG
-ECHO = 1              # GPIO.4 (BCM 23) -> HC-SR04 ECHO
+TRIG = 1              # GPIO.5 (BCM 24) -> HC-SR04 TRIG
+ECHO = 0              # GPIO.4 (BCM 23) -> HC-SR04 ECHO
 
-STEPPER_PINS = [13, 14, 15, 16]  # WiringPi pin numbers
+STEPPER_PINS = [12, 13, 14, 15]  # WiringPi pin numbers
 
 DELAY = 0.005          # Motor delay
 STEP_ANGLE = 1.8       # Degree per step
@@ -41,18 +41,23 @@ SEQ = [
     [0, 0, 0, 1],
 ]
 
-
 def move_stepper(steps, direction=1):
-    """Rotate the stepper motor a number of steps"""
-    for _ in range(steps):
-        for halfstep in range(8):
-            for pin in range(4):
-                wp.digitalWrite(STEPPER_PINS[pin], SEQ[::direction][halfstep][pin])
-            time.sleep(DELAY)
+    try:
+        for _ in range(steps):
+            for halfstep in range(8):
+                for pin in range(4):
+                    wp.digitalWrite(STEPPER_PINS[pin], SEQ[::direction][halfstep][pin])
+                time.sleep(DELAY)
+    except Exception as e:
+        print(f"Stepper error: {e}")
+        disable_motor()
 
+def disable_motor():
+    for pin in STEPPER_PINS:
+        wp.digitalWrite(pin, 0)
 
 def get_distance():
-    """Measure distance using ultrasonic sensor"""
+    """Measure distance using ultrasonic sensor with shorter timeouts."""
     wp.digitalWrite(TRIG, 0)
     time.sleep(0.000002)
     wp.digitalWrite(TRIG, 1)
@@ -61,20 +66,21 @@ def get_distance():
 
     timeout_start = time.time()
     while wp.digitalRead(ECHO) == 0:
-        if time.time() - timeout_start > 0.05:
-            return -1
+        if time.time() - timeout_start > 0.02:  # was 0.05
+            return -1  # early return if no response
+
     start_time = time.time()
 
     timeout_start = time.time()
     while wp.digitalRead(ECHO) == 1:
-        if time.time() - timeout_start > 0.05:
+        if time.time() - timeout_start > 0.02:  # was 0.05
             return -1
+
     end_time = time.time()
 
     duration = end_time - start_time
     distance = duration * 34300 / 2
     return round(distance, 1)
-
 
 def serve_radar():
     """Main server loop with sweeping logic"""
@@ -97,9 +103,9 @@ def serve_radar():
 
                 # Get distance and send to client
                 distance = get_distance()
-                if distance > 0:
-                    msg = f"{distance},{angle}\n"
-                    conn.sendall(msg.encode())
+                msg = f"{distance},{angle}\n"
+                conn.sendall(msg.encode())
+
 
                 # Update angle
                 angle += direction
