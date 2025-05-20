@@ -1,41 +1,291 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Air Defence System</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Radar and Tracking System</title>
     <style>
+        :root {
+            --radar-color: #4CAF50;
+            --tracking-color: #2196F3;
+            --danger-color: #f44336;
+            --warning-color: #FFC107;
+            --secondary-color: #9C27B0;
+        }
+        
         body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
             margin: 0;
             padding: 20px;
-            background-color: #1a1a1a;
-            color: #fff;
-            font-family: Arial, sans-serif;
         }
-        .container {
-            max-width: 800px;
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            color: #aaaaaa;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1800px;
             margin: 0 auto;
         }
-        h1 {
-            color: #00ff9d;
-            text-align: center;
-        }
-        #videoFeed {
-            width: 100%;
-            border: 2px solid #00ff9d;
+        
+        .panel {
+            background-color: #1e1e1e;
             border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .panel-title {
+            font-size: 1.5rem;
+            color: white;
+            margin: 0;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.active {
+            background-color: var(--radar-color);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.inactive {
+            background-color: #666;
+        }
+        
+        .video-container {
+            position: relative;
+            border: 2px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .video-container img {
+            width: 100%;
+            display: block;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
             margin-top: 20px;
         }
-        .status {
+        
+        .button {
+            background-color: var(--radar-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
             text-align: center;
-            margin: 20px 0;
-            color: #00ff9d;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        
+        .button:hover {
+            opacity: 0.9;
+        }
+        
+        .button.tracking {
+            background-color: var(--tracking-color);
+        }
+        
+        .button.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .button.danger {
+            background-color: var(--danger-color);
+        }
+        
+        .button.secondary {
+            background-color: var(--secondary-color);
+        }
+        
+        .info-panel {
+            margin-top: 20px;
+            background-color: #252525;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+        }
+        
+        .radar .info-label {
+            color: var(--radar-color);
+        }
+        
+        .tracking .info-label {
+            color: var(--tracking-color);
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Air Defence System Control Panel</h1>
-        <div class="status">LIVE CAMERA FEED</div>
-        <img id="videoFeed" src="{{ url_for('video_feed') }}">
+    <div class="header">
+        <h1>Integrated Defense System</h1>
+        <p class="subtitle">Combined Radar Monitoring and Target Tracking</p>
     </div>
+    
+    <div class="dashboard">
+        <!-- Radar Panel -->
+        <div class="panel radar">
+            <div class="panel-header">
+                <h2 class="panel-title">Radar System</h2>
+                <div class="status">
+                    <div class="status-indicator active"></div>
+                    <span>Active</span>
+                </div>
+            </div>
+            
+            <div class="video-container">
+                <img src="/radar_video" alt="Radar Display">
+            </div>
+            
+            <div class="controls">
+                <button class="button" onclick="fetch('/radar/start', { method: 'POST' }).then(alert('Scan started')).catch(alert('Error'))">Start Scan</button>
+                <button class="button" onclick="fetch('/radar/stop', { method: 'POST' }).then(alert('Scan stopped')).catch(alert('Error'))">Stop Scan</button>
+                <button class="button" onclick="fetch('/radar/save', { method: 'POST' }).then(alert('Data saved')).catch(alert('Error'))">Save Data</button>
+            </div>
+            
+            <div class="info-panel">
+                <h3>Radar Information</h3>
+                <div class="info-row">
+                    <span class="info-label">Range:</span>
+                    <span>100 cm</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Resolution:</span>
+                    <span>1 cm</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Angle Range:</span>
+                    <span>0° - 180°</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Update Rate:</span>
+                    <span>30 FPS</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tracking Panel -->
+        <div class="panel tracking">
+            <div class="panel-header">
+                <h2 class="panel-title">Tracking System</h2>
+                <div class="status">
+                    <div class="status-indicator active"></div>
+                    <span>Active</span>
+                </div>
+            </div>
+            
+            <div class="video-container">
+                <img src="/camera_video" alt="Camera Feed">
+            </div>
+            
+            <div class="controls">
+                <a href="/tracking/center" class="button tracking">Center Motors</a>
+                <a href="/tracking/toggle_tracking" class="button tracking">Toggle Tracking</a>
+                <a href="/tracking/toggle_laser" class="button secondary">Toggle Laser</a>
+                <a href="/tracking/calibrate" class="button warning">Calibrate</a>
+                <a href="/tracking/debug_toggle" class="button danger">Debug Mode</a>
+            </div>
+            
+            <div class="info-panel">
+                <h3>Tracking Information</h3>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span id="tracking-status">Active</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Laser:</span>
+                    <span id="laser-status">Off</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">FPS:</span>
+                    <span>30</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Resolution:</span>
+                    <span>1280×720</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Update status indicators
+        function updateTrackingStatus() {
+            fetch('/tracking/toggle_tracking')
+                .then(response => response.text())
+                .then(text => {
+                    const status = text.includes('enabled') ? 'Active' : 'Inactive';
+                    document.getElementById('tracking-status').textContent = status;
+                });
+        }
+        
+        function updateLaserStatus() {
+            fetch('/tracking/toggle_laser')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('laser-status').textContent = text;
+                });
+        }
+        
+        // Periodically update status
+        setInterval(updateTrackingStatus, 2000);
+        setInterval(updateLaserStatus, 2000);
+    </script>
 </body>
 </html>

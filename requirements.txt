@@ -1,6 +1,4 @@
 motpy
 opencv-python
 flask
-opencv-python
 numpy
-motpy
