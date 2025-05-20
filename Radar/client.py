@@ -15,12 +15,12 @@ HEIGHT = 720  # vertical size
 CENTER = (WIDTH // 2, HEIGHT - 10)  # bottom center, 10 px above bottom edge
 
 # Radar parameters
-MAX_DISTANCE = 350  # max pixel radius for 40 cm
-RADAR_RANGE_CM = 40  # max distance in cm
+MAX_DISTANCE = 500  # max pixel radius for 40 cm
+RADAR_RANGE_CM = 80  # max distance in cm
 
 # Colors (BGR)
 BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
+GREEN = (153,50,204)
 RED = (0, 0, 255)
 
 # Fade factor for ~3 seconds at 10 ms per frame (300 frames)
@@ -152,3 +152,4 @@ def connect_to_server():
 
 if __name__ == "__main__":
     connect_to_server()
+
