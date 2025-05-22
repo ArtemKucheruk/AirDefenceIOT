@@ -1,2 +1,4 @@
 motpy
 opencv-python
+flask
+numpy
