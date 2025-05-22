@@ -27,7 +27,7 @@ WEB_PORT = 5000
 
 # ==== GLOBAL VARIABLES ====
 total_steps_moved = 0
-frame = np.zeros((480, 640, 3), dtype=np.uint8)
+frame = np.zeros((720, 1080, 3), dtype=np.uint8)
 
 
 

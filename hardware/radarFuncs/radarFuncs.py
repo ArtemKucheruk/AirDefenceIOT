@@ -3,6 +3,7 @@ import wiringpi as wp
 import time
 import numpy as np
 import cv2
+import configs.configRadar as radar_config
 
 
 
@@ -100,7 +101,6 @@ def update_display(base_img, trace_img, distance, angle, CENTER, MAX_DISTANCE, R
 
 # ==== RADAR CONTROL FUNCTIONS ====
 def serve_radar(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGLE, STEP_DELAY, STEPPER_PINS, SEQ, DELAY):
-    global total_steps_moved
     print(f"Starting radar server on {RADAR_HOST}:{RADAR_PORT}...")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -116,7 +116,7 @@ def serve_radar(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGL
             while True:
                 steps = STEPS_PER_DEGREE
                 move_stepper(STEPPER_PINS, SEQ, DELAY, steps, direction)
-                total_steps_moved += steps * direction
+                radar_config.total_steps_moved += steps * direction
 
                 distance = get_distance(TRIG, ECHO)
                 msg = f"{distance},{angle}\n"
@@ -131,7 +131,6 @@ def serve_radar(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGL
 
 
 def radar_data_loop(CENTER, MAX_DISTANCE, HEIGHT, WIDTH, GREEN, RADAR_RANGE_CM, RADAR_HOST, RADAR_PORT, FADE_FACTOR, RED):
-    global frame
     base_img = initialize_radar_display(CENTER, MAX_DISTANCE, HEIGHT, WIDTH, GREEN, RADAR_RANGE_CM)
     trace_img = np.zeros_like(base_img)
 
@@ -155,7 +154,7 @@ def radar_data_loop(CENTER, MAX_DISTANCE, HEIGHT, WIDTH, GREEN, RADAR_RANGE_CM, 
                             trace_img[:] = (trace_img * FADE_FACTOR).astype(np.uint8)
                             base = base_img.copy()
                             update_display(base, trace_img, distance, angle, CENTER, MAX_DISTANCE, RADAR_RANGE_CM, GREEN, RED)
-                            frame = cv2.addWeighted(base, 1, trace_img, 1, 0)
+                            radar_config.frame = cv2.addWeighted(base, 1, trace_img, 1, 0)
                         except ValueError:
                             continue
         except Exception as e:

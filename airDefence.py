@@ -8,7 +8,9 @@ import time
 import cv2
 from threading import Thread
 from configs.configRadar import *
+from configs.configRadar import frame as config_radar_frame
 from hardware.radarFuncs.radarFuncs import *
+import configs.configRadar as radar_config
 
 
 
@@ -25,23 +27,32 @@ def index():
     """Main combined interface"""
     return render_template('index.html')
 
+
+
+
 @app.route('/radar_video')
 def radar_video():
-    """Radar video streaming route"""
     def generate():
         while True:
-            ret, buffer = cv2.imencode('.jpg', frame)
+            if np.mean(radar_config.frame) < 1:
+                time.sleep(0.05)
+                continue
+            ret, buffer = cv2.imencode('.jpg', radar_config.frame)
             if not ret:
                 continue
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
     return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+
+
 @app.route('/camera_video')
 def camera_video():
     """Camera video streaming route"""
     return Response(generate_frames(),
                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 
 # Radar control endpoints
 @app.route('/radar/start', methods=['POST'])
