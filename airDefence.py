@@ -126,7 +126,11 @@ if __name__ == '__main__':
         setup_hardware(TRIG, ECHO, STEPPER_PINS)
         
         # Start radar server in a separate thread
-        radar_thread = Thread(target=serve_radar, args=(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGLE, STEP_DELAY), daemon=True)
+        radar_thread = Thread(
+            target=serve_radar,
+            args=(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGLE, STEP_DELAY, STEPPER_PINS, SEQ, DELAY),
+            daemon=True
+        )
         radar_thread.start()
         
         # Start radar data processing in a separate thread

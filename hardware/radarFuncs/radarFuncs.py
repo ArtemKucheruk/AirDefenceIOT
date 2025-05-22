@@ -99,7 +99,7 @@ def update_display(base_img, trace_img, distance, angle, CENTER, MAX_DISTANCE, R
         cv2.circle(trace_img, detected_pt, 6, RED, -1)
 
 # ==== RADAR CONTROL FUNCTIONS ====
-def serve_radar(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGLE, STEP_DELAY):
+def serve_radar(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGLE, STEP_DELAY, STEPPER_PINS, SEQ, DELAY):
     global total_steps_moved
     print(f"Starting radar server on {RADAR_HOST}:{RADAR_PORT}...")
 
@@ -115,7 +115,7 @@ def serve_radar(TRIG, ECHO, RADAR_HOST, RADAR_PORT, STEPS_PER_DEGREE, TOTAL_ANGL
 
             while True:
                 steps = STEPS_PER_DEGREE
-                move_stepper(steps, direction)
+                move_stepper(STEPPER_PINS, SEQ, DELAY, steps, direction)
                 total_steps_moved += steps * direction
 
                 distance = get_distance(TRIG, ECHO)
